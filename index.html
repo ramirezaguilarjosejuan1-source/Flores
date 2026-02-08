@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jardín de Tulipanes Interactivos</title>
+    <title>Para Mafe ❤️</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body, html {
             margin: 0;
@@ -13,27 +14,41 @@
             overflow: hidden;
             background-color: #000;
             color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Dancing Script', cursive;
         }
 
         #ui {
             position: absolute;
             top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             width: 100%;
             text-align: center;
             pointer-events: none;
             z-index: 10;
+            animation: growUpText 3s ease-out forwards;
+        }
+
+        @keyframes growUpText {
+            0% {
+                top: 100vh;
+                transform: translateX(-50%) scale(0.1);
+                opacity: 0;
+            }
+            100% {
+                top: 20px;
+                transform: translateX(-50%) scale(1);
+                opacity: 1;
+            }
         }
 
         h1 {
-            font-size: 3rem;
+            font-size: 5rem;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-
-        p {
-            font-size: 1.2rem;
-            opacity: 0.8;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            font-weight: 300;
+            letter-spacing: 8px;
+            color: #fff;
         }
 
         canvas {
@@ -44,14 +59,167 @@
 </head>
 <body>
     <div id="ui">
-        <h1>Dibujar Tulipanes</h1>
-        <p>Haz clic o toca en cualquier lugar para crear flores</p>
+        <h1>Mafe ❤️</h1>
     </div>
     <canvas id="flowerCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('flowerCanvas');
         const ctx = canvas.getContext('2d');
+        const flowers = [];
+
+        class Flower {
+            constructor(x, y) {
+                this.x = x;
+                this.targetY = y;
+                this.stemHeight = canvas.height - y;
+                this.progress = 0;
+                this.growthSpeed = 0.015 + Math.random() * 0.01;
+
+                // Pre-calculate randomized properties to avoid jittering in draw loop
+                this.cp1x = x + (Math.random() - 0.5) * 120;
+                this.cp1y = canvas.height - this.stemHeight * 0.5;
+
+                // Stem jitter parameters
+                this.stemStrokes = [];
+                for(let i=0; i<5; i++) {
+                    this.stemStrokes.push({
+                        alpha: 0.3 + Math.random() * 0.5,
+                        width: 1 + Math.random() * 2,
+                        xOffset: (Math.random() - 0.5) * 6,
+                        cpXOffset: (Math.random() - 0.5) * 30,
+                        cpYOffset: (Math.random() - 0.5) * 30
+                    });
+                }
+
+                const colors = [
+                    {base: '#ff4d4d', light: '#ff8080', dark: '#cc0000'}, // Red
+                    {base: '#ff1a75', light: '#ff66a3', dark: '#b30047'}, // Pink
+                    {base: '#cc33ff', light: '#df80ff', dark: '#9900cc'}, // Purple
+                    {base: '#ff6600', light: '#ff944d', dark: '#cc5200'}, // Orange
+                    {base: '#ffcc00', light: '#ffdb4d', dark: '#cc9900'}, // Yellow
+                    {base: '#00ccff', light: '#80e5ff', dark: '#008fb3'}  // Blue
+                ];
+                this.colorSet = colors[Math.floor(Math.random() * colors.length)];
+                this.size = 20 + Math.random() * 15;
+
+                this.leaf1Pos = 0.2 + Math.random() * 0.1;
+                this.leaf2Pos = 0.4 + Math.random() * 0.1;
+                this.leaf1Rotate = -0.5 - Math.random() * 0.5;
+                this.leaf2Rotate = 0.5 + Math.random() * 0.5;
+                this.leaf1Size = { w: 8 + Math.random() * 10, h: 20 + Math.random() * 20 };
+                this.leaf2Size = { w: 8 + Math.random() * 10, h: 20 + Math.random() * 20 };
+
+                // Flower head offsets
+                this.headOffsets = [];
+                for(let i=0; i<3; i++) {
+                    this.headOffsets.push({
+                        alpha: 0.6 + Math.random() * 0.4,
+                        x: (Math.random() - 0.5) * 4
+                    });
+                }
+            }
+
+            update() {
+                if (this.progress < 1) {
+                    this.progress += this.growthSpeed;
+                    if (this.progress > 1) this.progress = 1;
+                }
+            }
+
+            draw() {
+                const currentY = canvas.height - (this.stemHeight * this.progress);
+
+                // Draw Stem
+                this.drawStem(currentY);
+
+                // Draw Leaves
+                if (this.progress > this.leaf1Pos) {
+                    this.drawLeaf(canvas.height - this.stemHeight * this.leaf1Pos, this.leaf1Rotate, this.leaf1Size);
+                }
+                if (this.progress > this.leaf2Pos) {
+                    this.drawLeaf(canvas.height - this.stemHeight * this.leaf2Pos, this.leaf2Rotate, this.leaf2Size);
+                }
+
+                // Draw Flower Head
+                if (this.progress > 0.8) {
+                    const flowerAlpha = (this.progress - 0.8) * 5;
+                    this.drawFlowerHead(this.x, currentY, flowerAlpha);
+                }
+            }
+
+            drawStem(currentY) {
+                ctx.lineCap = 'round';
+                this.stemStrokes.forEach(s => {
+                    ctx.strokeStyle = `rgba(45, 90, 39, ${s.alpha})`;
+                    ctx.lineWidth = s.width;
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + s.xOffset, canvas.height);
+                    ctx.quadraticCurveTo(
+                        this.cp1x + s.cpXOffset,
+                        this.cp1y + s.cpYOffset,
+                        this.x, currentY
+                    );
+                    ctx.stroke();
+                });
+            }
+
+            drawLeaf(y, rotation, size) {
+                ctx.save();
+                ctx.translate(this.x, y);
+                ctx.rotate(rotation);
+
+                ctx.globalAlpha = 0.7;
+                ctx.beginPath();
+                ctx.ellipse(0, -size.h/2, size.w/2, size.h/2, 0, 0, Math.PI * 2);
+                ctx.fillStyle = '#3a7d32';
+                ctx.fill();
+
+                ctx.globalAlpha = 1.0;
+                ctx.strokeStyle = '#2d5a27';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, -size.h);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            drawFlowerHead(x, y, alpha) {
+                ctx.save();
+                ctx.translate(x, y);
+
+                this.headOffsets.forEach(h => {
+                    ctx.globalAlpha = h.alpha * alpha;
+
+                    // Side petals
+                    this.drawPetal(-this.size * 0.3 + h.x, -this.size * 0.4, this.size, this.colorSet.base, -0.15);
+                    this.drawPetal(this.size * 0.3 + h.x, -this.size * 0.4, this.size, this.colorSet.base, 0.15);
+                    // Center petal
+                    this.drawPetal(h.x, -this.size * 0.5, this.size, this.colorSet.dark, 0);
+                });
+
+                ctx.globalAlpha = 1.0;
+                ctx.restore();
+            }
+
+            drawPetal(px, py, size, color, angle) {
+                ctx.save();
+                ctx.translate(px, py);
+                ctx.rotate(angle);
+
+                ctx.beginPath();
+                ctx.moveTo(0, size * 0.6);
+                ctx.bezierCurveTo(-size * 0.6, size * 0.4, -size * 0.6, -size * 0.4, 0, -size * 0.6);
+                ctx.bezierCurveTo(size * 0.6, -size * 0.4, size * 0.6, size * 0.4, 0, size * 0.6);
+
+                ctx.fillStyle = color;
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -61,9 +229,25 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Handle interaction
+        function animate() {
+            // Clear canvas with a very slight fade if you want a trail effect,
+            // but for "paint" style we usually want them to stay.
+            // However, since we are animating growth, we MUST clear to redraw the updated state.
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            flowers.forEach(flower => {
+                flower.update();
+                flower.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Interaction
         function handleAction(x, y) {
-            drawTulip(x, y);
+            flowers.push(new Flower(x, y));
         }
 
         canvas.addEventListener('mousedown', (e) => {
@@ -75,117 +259,6 @@
             const touch = e.touches[0];
             handleAction(touch.clientX, touch.clientY);
         }, { passive: false });
-
-        function drawTulip(x, y) {
-            const stemHeight = canvas.height - y;
-
-            // Draw Stem
-            drawStem(x, y, stemHeight);
-
-            // Draw Leaves
-            const leafPos1 = canvas.height - stemHeight * (0.2 + Math.random() * 0.1);
-            const leafPos2 = canvas.height - stemHeight * (0.4 + Math.random() * 0.1);
-            drawLeaf(x, leafPos1, true, stemHeight);
-            drawLeaf(x, leafPos2, false, stemHeight);
-
-            // Draw Flower Head
-            drawFlowerHead(x, y);
-        }
-
-        function drawStem(x, y, stemHeight) {
-            const cp1x = x + (Math.random() - 0.5) * 120;
-            const cp1y = canvas.height - stemHeight * 0.5;
-
-            ctx.lineCap = 'round';
-
-            // Multiple strokes for paint effect
-            for (let i = 0; i < 5; i++) {
-                ctx.strokeStyle = `rgba(45, 90, 39, ${0.3 + Math.random() * 0.5})`;
-                ctx.lineWidth = 1 + Math.random() * 2;
-                ctx.beginPath();
-                ctx.moveTo(x + (Math.random() - 0.5) * 6, canvas.height);
-
-                ctx.quadraticCurveTo(
-                    cp1x + (Math.random() - 0.5) * 30,
-                    cp1y + (Math.random() - 0.5) * 30,
-                    x, y
-                );
-                ctx.stroke();
-            }
-        }
-
-        function drawLeaf(x, y, left, stemHeight) {
-            const leafWidth = 8 + Math.random() * 10;
-            const leafHeight = 20 + Math.random() * 20;
-
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(left ? -0.5 - Math.random() * 0.5 : 0.5 + Math.random() * 0.5);
-
-            ctx.globalAlpha = 0.7;
-            ctx.beginPath();
-            ctx.ellipse(0, -leafHeight/2, leafWidth/2, leafHeight/2, 0, 0, Math.PI * 2);
-            ctx.fillStyle = '#3a7d32';
-            ctx.fill();
-
-            ctx.globalAlpha = 1.0;
-            ctx.strokeStyle = '#2d5a27';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(0, -leafHeight);
-            ctx.stroke();
-
-            ctx.restore();
-        }
-
-        function drawFlowerHead(x, y) {
-            const colors = [
-                {base: '#ff4d4d', light: '#ff8080', dark: '#cc0000'}, // Red
-                {base: '#ff1a75', light: '#ff66a3', dark: '#b30047'}, // Pink
-                {base: '#cc33ff', light: '#df80ff', dark: '#9900cc'}, // Purple
-                {base: '#ff6600', light: '#ff944d', dark: '#cc5200'}, // Orange
-                {base: '#ffcc00', light: '#ffdb4d', dark: '#cc9900'}, // Yellow
-                {base: '#00ccff', light: '#80e5ff', dark: '#008fb3'}  // Blue
-            ];
-            const colorSet = colors[Math.floor(Math.random() * colors.length)];
-
-            const size = 20 + Math.random() * 15;
-
-            ctx.save();
-            ctx.translate(x, y);
-
-            // Painterly effect: multiple layers with slight offsets
-            for (let i = 0; i < 3; i++) {
-                ctx.globalAlpha = 0.6 + Math.random() * 0.4;
-                const offset = (Math.random() - 0.5) * 4;
-
-                // Side petals
-                drawPetal(-size * 0.3 + offset, -size * 0.4, size, colorSet.base, -0.15);
-                drawPetal(size * 0.3 + offset, -size * 0.4, size, colorSet.base, 0.15);
-                // Center petal
-                drawPetal(offset, -size * 0.5, size, colorSet.dark, 0);
-            }
-
-            ctx.globalAlpha = 1.0;
-            ctx.restore();
-        }
-
-        function drawPetal(px, py, size, color, angle) {
-            ctx.save();
-            ctx.translate(px, py);
-            ctx.rotate(angle);
-
-            ctx.beginPath();
-            ctx.moveTo(0, size * 0.6);
-            ctx.bezierCurveTo(-size * 0.6, size * 0.4, -size * 0.6, -size * 0.4, 0, -size * 0.6);
-            ctx.bezierCurveTo(size * 0.6, -size * 0.4, size * 0.6, size * 0.4, 0, size * 0.6);
-
-            ctx.fillStyle = color;
-            ctx.fill();
-
-            ctx.restore();
-        }
     </script>
 </body>
 </html>
